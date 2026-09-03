@@ -64,3 +64,57 @@ def normalize_timestamp(date_str: str, time_str: str) -> str | None:
         return None
 
     return datetime.combine(dt_date, dt_time).strftime("%Y-%m-%d %H:%M:%S")
+
+def parse_line(line: str):
+    for pattern in (ANDROID_PATTERN, IOS_PATTERN):
+        m = pattern.match(line)
+        if m:
+            return m.group('date'), m.group('time'), m.group('rest')
+    return None
+
+
+def parse_chat(filepath: str) -> list[dict]:
+    messages = []
+    current = None  # in-progress message dict, or None
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        for raw_line in f:
+            line = raw_line.rstrip('\n')
+            if not line.strip():
+                continue
+
+            parsed = parse_line(line)
+
+            if parsed is None:
+                # No timestamp prefix -> continuation of the previous message
+                if current is not None:
+                    current['message'] += '\n' + line
+                continue
+
+            # A new timestamped entry starts -> flush whatever we were building
+            if current is not None:
+                messages.append(current)
+                current = None
+
+            date_str, time_str, rest = parsed
+            sender_match = SENDER_MESSAGE_PATTERN.match(rest)
+
+            if sender_match is None:
+                continue  # system/group event, drop it
+
+            sender = sender_match.group('sender').strip()
+            message = sender_match.group('message').strip()
+
+            if is_noise(message):
+                continue
+
+            current = {
+                'timestamp': normalize_timestamp(date_str, time_str),
+                'sender': sender,
+                'message': message,
+            }
+
+    if current is not None:
+        messages.append(current)
+
+    return messages
