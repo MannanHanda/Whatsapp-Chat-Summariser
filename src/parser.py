@@ -118,3 +118,19 @@ def parse_chat(filepath: str) -> list[dict]:
         messages.append(current)
 
     return messages
+
+def main():
+    import sys
+    input_path = sys.argv[1] if len(sys.argv) > 1 else 'data/chat.txt'
+    output_path = 'data/formatted_chat.json'
+
+    messages = parse_chat(input_path)
+
+    with open(output_path, 'w', encoding='utf-8') as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
+
+    print(f"Parsed {len(messages)} messages -> {output_path}")
+
+
+if __name__ == '__main__':
+    main()
