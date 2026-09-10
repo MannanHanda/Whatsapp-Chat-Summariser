@@ -1,7 +1,7 @@
 """
 Phase 2: Local AI Summarization Engine.
 
-Sends the clean formatted_chat.json produced by Phase 1 to a local Ollama
+Sends the clean formatted_chat.json produced by Phase 1 to a local y
 model and produces a structured JSON summary (summary_output.json).
 """
 
@@ -11,8 +11,8 @@ import requests
 # --- Configuration ------------------------------------------------------------
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "llama3.1:8b"
-CHUNK_SIZE = 75  # messages per chunk sent to the model
+MODEL_NAME = "qwen2.5:3b"
+CHUNK_SIZE = 50  # messages per chunk sent to the model
 
 
 def load_messages(filepath: str) -> list:
@@ -224,12 +224,13 @@ def merge_summaries(chunk_summaries: list, model: str = MODEL_NAME,
 
 # --- Orchestration ------------------------------------------------------------
 
-def summarize_chat(input_path: str, output_path: str = "data/summary_output.json",
-                    model: str = MODEL_NAME, url: str = OLLAMA_URL,
-                    chunk_size: int = CHUNK_SIZE) -> dict:
-    messages = load_messages(input_path)
+def summarize_chat_messages(messages: list, model: str = MODEL_NAME, url: str = OLLAMA_URL,
+                             chunk_size: int = CHUNK_SIZE) -> dict:
+    """Chunk-then-merge summarization over an in-memory list of messages
+    (rather than a file path) -- used when only a slice of messages needs
+    summarizing, e.g. just the new ones since a checkpoint."""
     chunks = chunk_messages(messages, chunk_size)
-    print(f"Loaded {len(messages)} messages -> {len(chunks)} chunk(s) of up to {chunk_size}")
+    print(f"{len(messages)} messages -> {len(chunks)} chunk(s) of up to {chunk_size}")
 
     chunk_summaries = []
     for i, chunk in enumerate(chunks, start=1):
@@ -238,7 +239,14 @@ def summarize_chat(input_path: str, output_path: str = "data/summary_output.json
 
     if len(chunk_summaries) > 1:
         print("Merging chunk summaries into master summary...")
-    master_summary = merge_summaries(chunk_summaries, model=model, url=url)
+    return merge_summaries(chunk_summaries, model=model, url=url)
+
+
+def summarize_chat(input_path: str, output_path: str = "data/summary_output.json",
+                    model: str = MODEL_NAME, url: str = OLLAMA_URL,
+                    chunk_size: int = CHUNK_SIZE) -> dict:
+    messages = load_messages(input_path)
+    master_summary = summarize_chat_messages(messages, model=model, url=url, chunk_size=chunk_size)
 
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(master_summary, f, ensure_ascii=False, indent=2)

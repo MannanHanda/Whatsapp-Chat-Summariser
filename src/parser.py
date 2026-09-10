@@ -16,7 +16,7 @@ IOS_PATTERN = re.compile(
     r'(?P<rest>.*)$'
 )
 
-SENDER_MESSAGE_PATTERN = re.compile(r'^(?P<sender>[^:]{1,40}?):\s(?P<message>.*)$')
+SENDER_MESSAGE_PATTERN = re.compile(r'^(?P<sender>[^:]+):\s(?P<message>.*)$', re.DOTALL)
 NOISE_SUBSTRINGS = [
     "Messages and calls are end-to-end encrypted",
     "<Media omitted>",
