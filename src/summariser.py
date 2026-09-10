@@ -1,23 +1,50 @@
 """
 Phase 2: Local AI Summarization Engine.
 
-Sends the clean formatted_chat.json produced by Phase 1 to a local y
+Sends the clean formatted_chat.json produced by Phase 1 to a local Ollama
 model and produces a structured JSON summary (summary_output.json).
 """
 
 import json
+import os
 import requests
 
 # --- Configuration ------------------------------------------------------------
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "qwen2.5:3b"
+
+# Swap models without editing code: OLLAMA_MODEL=qwen2.5:1.5b python src/summarizer.py ...
+MODEL_NAME = os.environ.get("OLLAMA_MODEL", "qwen2.5:3b")
+
 CHUNK_SIZE = 50  # messages per chunk sent to the model
 
 
 def load_messages(filepath: str) -> list:
     with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
+
+
+def format_messages_compact(chunk: list) -> str:
+    """
+    Render a chunk as flat "[MM-DD HH:MM] Sender: message" lines instead of
+    JSON, cutting prompt token overhead significantly (no repeated key
+    names, braces, or quoting per message).
+
+    The year is dropped (redundant within a single export) and seconds are
+    dropped (not meaningful for summarization), but month-day is kept since
+    a chunk can span multiple days. Embedded newlines in a message (from
+    Phase 1's multiline consolidation) are flattened to a single space,
+    since this format uses one line per message -- an embedded newline
+    would look like a second message to the model.
+    """
+    lines = []
+    for msg in chunk:
+        ts = msg.get('timestamp') or ''
+        short_ts = ts[5:16].replace('T', ' ') if len(ts) >= 16 else ts  # "MM-DD HH:MM"
+        sender = msg.get('sender', 'Unknown')
+        text = (msg.get('message') or '').replace('\n', ' ')
+        lines.append(f"[{short_ts}] {sender}: {text}")
+    return "\n".join(lines)
 
 
 # --- Chunking -------------------------------------------------------------
@@ -49,8 +76,8 @@ TARGET_SCHEMA_EXAMPLE = {
 }
 
 SYSTEM_PROMPT = f"""You are a precise chat log summarizer. You will be given a
-batch of WhatsApp messages as JSON, each with "timestamp", "sender", and
-"message" fields.
+batch of WhatsApp messages, one per line, in this format:
+[MM-DD HH:MM] Sender: message text
 
 Your job is to extract SIGNAL, not to narrate the conversation:
 - Ignore small talk, greetings, filler, and reactions ("How are you?",
@@ -128,7 +155,7 @@ def summarize_chunk(chunk: list, model: str = MODEL_NAME, url: str = OLLAMA_URL,
     Retries once with a stricter reminder if the first response fails validation."""
     user_content = (
         "Summarize the following batch of chat messages according to your "
-        "instructions. Messages:\n\n" + json.dumps(chunk, ensure_ascii=False)
+        "instructions. Messages:\n\n" + format_messages_compact(chunk)
     )
 
     last_error = None
