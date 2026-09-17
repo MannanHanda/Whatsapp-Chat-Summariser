@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 import parser as chat_parser
-import summariser
+import summarizer
 
 STATE_PATH = "data/.pipeline_state.json"
 DEFAULT_THRESHOLD = 50
@@ -36,7 +36,7 @@ def save_state(state: dict, state_path: str = STATE_PATH) -> None:
 def run_auto_pipeline(export_path: str, threshold: int = DEFAULT_THRESHOLD,
                        state_path: str = STATE_PATH,
                        output_dir: str = "data",
-                       url: str = summariser.OLLAMA_URL) -> dict:
+                       url: str = summarizer.OLLAMA_URL) -> dict:
     """
     Parse the export, compare against the checkpoint, and summarize only if
     enough new messages have accumulated. Returns a status dict describing
@@ -56,7 +56,7 @@ def run_auto_pipeline(export_path: str, threshold: int = DEFAULT_THRESHOLD,
             "messages_needed": threshold - len(new_messages),
         }
 
-    summary = summariser.summarize_chat_messages(new_messages, url=url)
+    summary = summarizer.summarize_chat_messages(new_messages, url=url)
 
     output_path = os.path.join(output_dir, "summary_output.json")
     with open(output_path, 'w', encoding='utf-8') as f:

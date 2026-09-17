@@ -38,7 +38,7 @@ export default function FileUploader({ onLoad }) {
 
       try {
         // Sends raw .txt file to your local Python backend server
-        const response = await fetch("http://localhost:8000/api/summarize", {
+        const response = await fetch("http://localhost:8000/api/process", {
           method: "POST",
           body: formData,
         });
@@ -51,7 +51,7 @@ export default function FileUploader({ onLoad }) {
         stopTimer();
         
         // Pass the generated summary back up to the main React dashboard
-        onLoad(data);
+        onLoad(data.summary);
       } catch (err) {
         stopTimer();
         setError(
